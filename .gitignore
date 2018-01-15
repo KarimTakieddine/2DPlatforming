@@ -1,0 +1,13 @@
+.vs/
+Library/metadata/
+Library/PlayerDataCache/
+Library/ShaderCache/
+Temp/
+
+**/*.bin
+**/*.buildreport
+**/*.log
+**/*.mdb
+**/*.pdb
+**/*.suo
+**/*.tmp
