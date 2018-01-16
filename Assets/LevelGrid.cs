@@ -2,6 +2,39 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// 
+/// It is an error to define a default (parameterless) constructor for a struct.
+/// It is also an error to initialize an instance field in a struct body.
+/// 
+/// One may initialize externally accessible struct members only by using a
+/// parameterized constructor, the implicit, default constructor, an object
+/// initializer, or by accessing the members individually after the struct
+/// is declared.
+/// 
+/// </summary>
+
+public struct Cell
+{
+    public int TopLeft;
+    public int TopRight;
+    public int BottomRight;
+    public int BottomLeft;
+
+    public Cell(
+        int stride,
+        int count,
+        int position,
+        int offset
+    )
+    {
+        TopLeft     = count * stride + position + offset;
+        TopRight    = TopLeft + 1;
+        BottomLeft  = TopLeft + stride;
+        BottomRight = BottomLeft + 1;
+    }
+};
+
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
 public class LevelGrid : MonoBehaviour
 {
@@ -28,47 +61,6 @@ public class LevelGrid : MonoBehaviour
         Filter.sharedMesh = Geometry;
     }
 
-    public void InitializeSurfaceGeometry()
-    {
-        int widthPlusOne    = GridWidth + 1;
-        int heightPlusOne   = GridHeight + 1;
-        Vector3[] vertices  = new Vector3[widthPlusOne * heightPlusOne];
-
-        for (int i = 0; i < heightPlusOne; ++i)
-        {
-            for (int j = 0; j < widthPlusOne; ++j)
-            {
-                vertices[i * widthPlusOne + j] = Origin + new Vector3(j, i);
-            }
-        }
-
-        int[] triangles     = new int[GridWidth * GridHeight * 6];
-        int triangleIndex   = 0;
-
-        for (int i = 0; i < GridHeight; ++i)
-        {
-            for (int j  = 0; j < GridWidth; ++j)
-            {
-                int topLeftIndex            = i * widthPlusOne + j;
-                int topRightIndex           = topLeftIndex + 1;
-                int bottomRightIndex        = topRightIndex + widthPlusOne;
-                int bottomLeftIndex         = bottomRightIndex - 1;
-
-                triangles[triangleIndex++]  = bottomLeftIndex;
-                triangles[triangleIndex++]  = bottomRightIndex;
-                triangles[triangleIndex++]  = topRightIndex;
-
-                triangles[triangleIndex++]  = bottomLeftIndex;
-                triangles[triangleIndex++]  = topRightIndex;
-                triangles[triangleIndex++]  = topLeftIndex;
-            }
-        }
-
-        Geometry.Clear();
-        Geometry.vertices   = vertices;
-        Geometry.triangles  = triangles;
-    }
-
     public static void TriangulateLines(
         bool clockwise,
         int width,
@@ -84,18 +76,15 @@ public class LevelGrid : MonoBehaviour
             {
                 for (int j = 0; j < width; ++j)
                 {
-                    int topLeftIndex        = i * (width + 1) + j + offset;
-                    int topRightIndex       = topLeftIndex + 1;
-                    int bottomLeftIndex     = topLeftIndex + width + 1;
-                    int bottomRightIndex    = bottomLeftIndex + 1;
+                    Cell cell = new Cell(width + 1, i, j, offset);
 
-                    triangles[triangleIndex++] = bottomLeftIndex;
-                    triangles[triangleIndex++] = bottomRightIndex;
-                    triangles[triangleIndex++] = topRightIndex;
+                    triangles[triangleIndex++] = cell.TopLeft;
+                    triangles[triangleIndex++] = cell.TopRight;
+                    triangles[triangleIndex++] = cell.BottomRight;
 
-                    triangles[triangleIndex++] = bottomLeftIndex;
-                    triangles[triangleIndex++] = topRightIndex;
-                    triangles[triangleIndex++] = topLeftIndex;
+                    triangles[triangleIndex++] = cell.TopLeft;
+                    triangles[triangleIndex++] = cell.BottomRight;
+                    triangles[triangleIndex++] = cell.BottomLeft;
                 }
             }
         }
@@ -105,118 +94,129 @@ public class LevelGrid : MonoBehaviour
             {
                 for (int j = 0; j < width; ++j)
                 {
-                    int bottomLeftIndex     = i * (width + 1) + j + offset;
-                    int bottomRightIndex    = bottomLeftIndex + width + 1;
-                    int topLeftIndex        = bottomLeftIndex + 1;
-                    int topRightIndex       = topLeftIndex + width + 1;
+                    Cell cell = new Cell(width + 1, i, j, offset);
 
-                    triangles[triangleIndex++] = bottomLeftIndex;
-                    triangles[triangleIndex++] = topLeftIndex;
-                    triangles[triangleIndex++] = topRightIndex;
+                    triangles[triangleIndex++] = cell.BottomLeft;
+                    triangles[triangleIndex++] = cell.BottomRight;
+                    triangles[triangleIndex++] = cell.TopRight;
 
-                    triangles[triangleIndex++] = bottomLeftIndex;
-                    triangles[triangleIndex++] = topRightIndex;
-                    triangles[triangleIndex++] = bottomRightIndex;
+                    triangles[triangleIndex++] = cell.BottomLeft;
+                    triangles[triangleIndex++] = cell.TopRight;
+                    triangles[triangleIndex++] = cell.TopLeft;
                 }
             }
         }
     }
 
-    private void TriangulateHorizontal(
-        int widthPlusOne,
-        int heightPlusOne,
-        ref int triangleIndex,
+    private void LoadVertexRows(
+        int strideY,
+        int strideX,
         ref int vertexIndex,
-        int[] triangles,
         Vector3[] vertices
     )
     {
-        for (int i = 0; i < heightPlusOne; ++i)
+        for (int i = 0; i < strideY; ++i)
         {
             // First row
 
-            for (int j = 0; j < widthPlusOne; ++j)
+            for (int j = 0; j < strideX; ++j)
             {
                 vertices[vertexIndex++] = Origin + new Vector3(j * CellSize, i * CellSize);
             }
 
             // Second row, separated vertically by line thickness only
 
-            for (int j = 0; j < widthPlusOne; ++j)
+            for (int j = 0; j < strideX; ++j)
             {
                 vertices[vertexIndex++] = Origin + new Vector3(j * CellSize, (i * CellSize) + LineThickness);
             }
         }
-
-        TriangulateLines(true, GridWidth, heightPlusOne, 0, ref triangleIndex, triangles);
     }
 
-    private void TriangulateVertical(
-        int widthPlusOne,
-        int heightPlusOne,
+    private void LoadVertexColumns(
+        int strideY,
+        int strideX,
+        ref int vertexIndex,
+        Vector3[] vertices
+    )
+    {
+        for (int i = 0; i < strideX; ++i)
+        {
+            // First column
+
+            for (int j = 0; j < strideY; ++j)
+            {
+                vertices[vertexIndex++] = Origin + new Vector3(i * CellSize, j * CellSize);
+            }
+
+            //Second column, separated horizontally by line thickness only
+
+            for (int j = 0; j < strideY; ++j)
+            {
+                vertices[vertexIndex++] = Origin + new Vector3((i * CellSize) + LineThickness, j * CellSize);
+            }
+        }
+    }
+
+    private void TriangulateHorizontal(
+        int width,
+        int height,
+        int offset,
         ref int triangleIndex,
         ref int vertexIndex,
         int[] triangles,
         Vector3[] vertices
     )
     {
-        int horizontalMaximum = vertexIndex;
+        LoadVertexRows(height + 1, width + 1, ref vertexIndex, vertices);
+        TriangulateLines(false, width, height + 1, offset, ref triangleIndex, triangles);
+    }
 
-        for (int i = 0; i < widthPlusOne; ++i)
-        {
-            // First column
-
-            for (int j = 0; j < heightPlusOne; ++j)
-            {
-                vertices[vertexIndex++] = new Vector3(i * CellSize, j * CellSize);
-            }
-
-            //Second column, separated horizontally by line thickness only
-
-            for (int j = 0; j < heightPlusOne; ++j)
-            {
-                vertices[vertexIndex++] = new Vector3((i * CellSize) + LineThickness, j * CellSize);
-            }
-        }
-
-        TriangulateLines(false, GridHeight, widthPlusOne, horizontalMaximum, ref triangleIndex, triangles);
+    private void TriangulateVertical(
+        int width,
+        int height,
+        int offset,
+        ref int triangleIndex,
+        ref int vertexIndex,
+        int[] triangles,
+        Vector3[] vertices
+    )
+    {
+        LoadVertexColumns(height + 1, width + 1, ref vertexIndex, vertices);
+        TriangulateLines(true, height, width + 1, offset, ref triangleIndex, triangles);
     }
 
     public void InitializeGridGeometry()
     {
         // Count one more vertex than the cell count in each direction
 
-        int widthPlusOne    = GridWidth + 1;
-        int heightPlusOne   = GridHeight + 1;
-
         // 2 rows * 2 columns * (cell_count_x + 1) * (cell_count_y + 1) + top_right_corner
 
-        Vector3[] vertices  = new Vector3[widthPlusOne * heightPlusOne * 4 + 1];
-
-        // 2 triangles per cell * 2 * 6 indices * cell_count_x * cell_count_y
-
-        int[] triangles     = new int[GridWidth * GridHeight * 6 * 4];
+        Vector3[] vertices  = new Vector3[(GridWidth + 1) * (GridHeight + 1) * 4 + 1];
+        int[] triangles     = new int[GridWidth * GridHeight * 12 + GridWidth * 6 + GridHeight * 6 + 6];
         int vertexIndex     = 0;
         int triangleIndex   = 0;
 
-        TriangulateHorizontal(widthPlusOne, heightPlusOne, ref triangleIndex, ref vertexIndex, triangles, vertices);
-        int horizontalVertexCount = vertexIndex;
-        TriangulateVertical(widthPlusOne, heightPlusOne, ref triangleIndex, ref vertexIndex, triangles, vertices);
+        TriangulateHorizontal(GridWidth, GridHeight, vertexIndex, ref triangleIndex, ref vertexIndex, triangles, vertices);
 
-        int lastBottomRightIndex    = vertexIndex - 1;
-        int lastTopLeftIndex        = horizontalVertexCount - 1;
-        int lastBottomLeftIndex     = lastTopLeftIndex - widthPlusOne;
-        int lastTopRightIndex       = vertexIndex++;
+        int topLeftIndex = vertexIndex - 1;
 
-        triangles[triangleIndex++] = lastBottomLeftIndex;
-        triangles[triangleIndex++] = lastTopLeftIndex;
-        triangles[triangleIndex++] = lastTopRightIndex;
+        TriangulateVertical(GridWidth, GridHeight, vertexIndex, ref triangleIndex, ref vertexIndex, triangles, vertices);
 
-        triangles[triangleIndex++] = lastBottomLeftIndex;
-        triangles[triangleIndex++] = lastTopRightIndex;
-        triangles[triangleIndex++] = lastBottomRightIndex;
+        int topRightIndex       = vertexIndex;
+        int bottomRightIndex    = topRightIndex - 1;
+        int bottomLeftIndex     = bottomRightIndex - GridWidth - 1;
+        vertices[topRightIndex] = new Vector3((GridWidth * CellSize) + LineThickness, (GridHeight * CellSize) + LineThickness);
 
-        vertices[lastTopRightIndex] = new Vector3((GridWidth * CellSize) + LineThickness, (GridHeight * CellSize) + LineThickness);
+        triangles[triangleIndex++] = topLeftIndex;
+        triangles[triangleIndex++] = topRightIndex;
+        triangles[triangleIndex++] = bottomRightIndex;
+
+        triangles[triangleIndex++] = topLeftIndex;
+        triangles[triangleIndex++] = bottomRightIndex;
+        triangles[triangleIndex++] = bottomLeftIndex;
+
+        Debug.Log(triangleIndex);
 
         Geometry.Clear();
         Geometry.vertices   = vertices;
