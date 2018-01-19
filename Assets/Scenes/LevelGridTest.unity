@@ -155,9 +155,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 965d47fccd61f6f49be8d5df9f9ab59f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  GridWidth: 3
-  GridHeight: 3
-  CellSize: 1
+  Offset: {x: 0, y: 0}
+  GridWidth: 2
+  GridHeight: 2
+  CellSize: 2
   LineThickness: 0.035
 --- !u!23 &1067385026
 MeshRenderer:
