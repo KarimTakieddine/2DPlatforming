@@ -5,16 +5,16 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProductVersion>10.0.20506</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{61896CC2-72CC-DEBB-96AE-6A08EFEDAA23}</ProjectGuid>
+    <ProjectGuid>{CC4B52ED-A48C-2D4D-982A-4A964EB12FEE}</ProjectGuid>
     <OutputType>Library</OutputType>
-    <AssemblyName>Assembly-CSharp</AssemblyName>
+    <AssemblyName>Assembly-CSharp-Editor</AssemblyName>
     <FileAlignment>512</FileAlignment>
     <ProjectTypeGuids>{E097FAD1-6243-4DAD-9C02-E9B9EFC3FFC1};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <TargetFrameworkIdentifier>.NETFramework</TargetFrameworkIdentifier>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
-    <TargetFrameworkProfile>Unity Subset v3.5</TargetFrameworkProfile>
+    <TargetFrameworkProfile>Unity Full v3.5</TargetFrameworkProfile>
     <CompilerResponseFile></CompilerResponseFile>
-    <UnityProjectType>Game:1</UnityProjectType>
+    <UnityProjectType>Editor:5</UnityProjectType>
     <UnityBuildTarget>StandaloneWindows64:19</UnityBuildTarget>
     <UnityVersion>2017.3.0f3</UnityVersion>
     <RootNamespace></RootNamespace>
@@ -312,10 +312,13 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Assets\Scripts\PixelTileBasedGame\PixelLevel.cs" />
-    <Compile Include="Assets\Scripts\PixelTileBasedGame\PixelTile.cs" />
-    <Compile Include="Assets\Scripts\PixelTileBasedGame\PixelTileManager.cs" />
-    <Compile Include="Assets\Scripts\Utility\LevelGrid.cs" />
+    <ProjectReference Include="2DPlatforming.csproj">
+      <Project>{61896CC2-72CC-DEBB-96AE-6A08EFEDAA23}</Project>
+      <Name>2DPlatforming</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Assets\Scripts\Editor\PixelTileManagerEditor.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Shaders\LineColorShader.shader" />

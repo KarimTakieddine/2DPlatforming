@@ -3,6 +3,8 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2017
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "2DPlatforming", "2DPlatforming.csproj", "{61896CC2-72CC-DEBB-96AE-6A08EFEDAA23}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "2DPlatforming.Editor", "2DPlatforming.Editor.csproj", "{CC4B52ED-A48C-2D4D-982A-4A964EB12FEE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -13,6 +15,10 @@ Global
 		{61896CC2-72CC-DEBB-96AE-6A08EFEDAA23}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{61896CC2-72CC-DEBB-96AE-6A08EFEDAA23}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{61896CC2-72CC-DEBB-96AE-6A08EFEDAA23}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CC4B52ED-A48C-2D4D-982A-4A964EB12FEE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CC4B52ED-A48C-2D4D-982A-4A964EB12FEE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CC4B52ED-A48C-2D4D-982A-4A964EB12FEE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CC4B52ED-A48C-2D4D-982A-4A964EB12FEE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
