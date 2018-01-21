@@ -14,16 +14,16 @@
 
 public struct IndexCell
 {
-    const uint INDEX_COUNT = 4;
+    const int INDEX_COUNT = 4;
 
-    public uint TopLeft;
-    public uint TopRight;
-    public uint BottomRight;
-    public uint BottomLeft;
+    public int TopLeft;
+    public int TopRight;
+    public int BottomRight;
+    public int BottomLeft;
 
     public IndexCell(
-        uint position,
-        uint offset
+        int position,
+        int offset
     )
     {
 
@@ -39,21 +39,28 @@ public class LevelGrid : MonoBehaviour
 {
     public MeshFilter   MeshFilterComponent { get; private set; }
     public Mesh         MeshComponent       { get; private set; }
-    public Vector2      Origin              { get; private set; }
 
-    public uint         HorizontalCellCount { get; set; }
-    public uint         VerticalCellCount   { get; set; }
-    public uint         CellSizeX           { get; set; }
-    public uint         CellSizeY           { get; set; }
+    public Vector2      Origin;
+    public Vector2      CellSize;
+    public int          HorizontalCellCount, VerticalCellCount;
 
-    public uint         OriginX             { get; set; }
-    public uint         OriginY             { get; set; }
+    [Range(0.025f, 1.0f)]
+    public float LineThickness;
+    public float HalfLineWidth              { get; private set; }
 
-    public float        HalfLineWidth       { get; private set; }
+    private void ValidateState()
+    {
+        if (HorizontalCellCount < 0)
+        {
+            HorizontalCellCount = 0;
+        }
 
-    [Range(0.0f, 1.0f)]
-    public float        LineThickness;
-
+        if (VerticalCellCount < 0)
+        {
+            VerticalCellCount = 0;
+        }
+    }
+    
     public void InitializeComponents()
     {
         MeshFilterComponent             = GetComponent<MeshFilter>();
@@ -63,39 +70,35 @@ public class LevelGrid : MonoBehaviour
 
     public void UpdateComponents()
     {
-        Origin          = new Vector2(OriginX, OriginY);
-        HalfLineWidth   = LineThickness * 0.5f;
+        HalfLineWidth = LineThickness * 0.5f;
         InitializeMeshAsGrid();
     }
 
-    /*
-        private void Awake()
-        {
-            InitializeComponents();
-        }
-    */
+    public void Awake()
+    {
+        InitializeComponents();
+        ValidateState();
+    }
 
-
-    /*
-        private void Update()
-        {
-            UpdateComponents();
-        }
-    */
+    public void Update()
+    {
+        UpdateComponents();
+    }
 
     private void LoadVertexRows(
-        uint width,
-        uint height,
-        ref uint vertexIndex,
+        int width,
+        int height,
+        ref int vertexIndex,
         Vector3[] vertices
     )
     {
-        float rightPositionX = width * CellSizeX + HalfLineWidth;
+        float rightPositionX    = width * CellSize.x + HalfLineWidth;
+        float verticalCellSize  = CellSize.y;
 
         for (int i = 0; i < height; ++i)
         {
-            float bottomPositionY   = i * CellSizeY - HalfLineWidth;
-            float topPositionY      = i * CellSizeY + HalfLineWidth;
+            float bottomPositionY   = i * verticalCellSize - HalfLineWidth;
+            float topPositionY      = i * verticalCellSize + HalfLineWidth;
 
             vertices[vertexIndex++] = Origin + new Vector2(-HalfLineWidth, bottomPositionY);
             vertices[vertexIndex++] = Origin + new Vector2(rightPositionX, bottomPositionY);
@@ -105,18 +108,19 @@ public class LevelGrid : MonoBehaviour
     }
 
     private void LoadVertexColumns(
-        uint width,
-        uint height,
-        ref uint vertexIndex,
+        int width,
+        int height,
+        ref int vertexIndex,
         Vector3[] vertices
     )
     {
-        float topPositionY = height * CellSizeY + HalfLineWidth;
+        float topPositionY          = height * CellSize.y + HalfLineWidth;
+        float horizontalCellSize    = CellSize.x;
 
         for (int i = 0; i < width; ++i)
         {
-            float leftPositionX     = (i * CellSizeX) - HalfLineWidth;
-            float rightPositionX    = (i * CellSizeX) + HalfLineWidth;
+            float leftPositionX     = (i * horizontalCellSize) - HalfLineWidth;
+            float rightPositionX    = (i * horizontalCellSize) + HalfLineWidth;
 
             vertices[vertexIndex++] = Origin + new Vector2(leftPositionX, topPositionY);
             vertices[vertexIndex++] = Origin + new Vector2(leftPositionX, 0.0f);
@@ -126,30 +130,30 @@ public class LevelGrid : MonoBehaviour
     }
 
     public static void TriangulateIndices(
-        uint offset,
-        uint stride,
-        ref uint triangleIndex,
+        int offset,
+        int stride,
+        ref int triangleIndex,
         int[] triangles
     )
     {
-        for (uint i = 0; i < stride; i += 1)
+        for (int i = 0; i < stride; i += 1)
         {
             IndexCell indexCell         = new IndexCell(i * 4, offset);
-            triangles[triangleIndex++]  = (int)indexCell.TopLeft;
-            triangles[triangleIndex++]  = (int)indexCell.TopRight;
-            triangles[triangleIndex++]  = (int)indexCell.BottomRight;
-            triangles[triangleIndex++]  = (int)indexCell.TopLeft;
-            triangles[triangleIndex++]  = (int)indexCell.BottomRight;
-            triangles[triangleIndex++]  = (int)indexCell.BottomLeft;
+            triangles[triangleIndex++]  = indexCell.TopLeft;
+            triangles[triangleIndex++]  = indexCell.TopRight;
+            triangles[triangleIndex++]  = indexCell.BottomRight;
+            triangles[triangleIndex++]  = indexCell.TopLeft;
+            triangles[triangleIndex++]  = indexCell.BottomRight;
+            triangles[triangleIndex++]  = indexCell.BottomLeft;
         }
     }
 
     private void TriangulateHorizontal(
-        uint width,
-        uint height,
-        uint offset,
-        ref uint triangleIndex,
-        ref uint vertexIndex,
+        int width,
+        int height,
+        int offset,
+        ref int triangleIndex,
+        ref int vertexIndex,
         int[] triangles,
         Vector3[] vertices
     )
@@ -159,11 +163,11 @@ public class LevelGrid : MonoBehaviour
     }
 
     private void TriangulateVertical(
-        uint width,
-        uint height,
-        uint offset,
-        ref uint triangleIndex,
-        ref uint vertexIndex,
+        int width,
+        int height,
+        int offset,
+        ref int triangleIndex,
+        ref int vertexIndex,
         int[] triangles,
         Vector3[] vertices
     )
@@ -174,14 +178,14 @@ public class LevelGrid : MonoBehaviour
 
     public void InitializeMeshAsGrid()
     {
-        uint vertexCountX       = HorizontalCellCount + 1;
-        uint vertexCountY       = VerticalCellCount + 1;
-        uint totalVertexCount   = (vertexCountX + vertexCountY) * 4;    
+        int vertexCountX        = HorizontalCellCount + 1;
+        int vertexCountY        = VerticalCellCount + 1;
+        int totalVertexCount    = (vertexCountX + vertexCountY) * 4;    
         Vector3[] vertices      = new Vector3[totalVertexCount];
         int[] triangles         = new int[(int)(totalVertexCount * 1.5f)];
 
-        uint vertexIndex     = 0;
-        uint triangleIndex   = 0;
+        int vertexIndex     = 0;
+        int triangleIndex   = 0;
 
         TriangulateVertical(vertexCountX, VerticalCellCount, 0, ref triangleIndex, ref vertexIndex, triangles, vertices);
         TriangulateHorizontal(HorizontalCellCount, vertexCountY, vertexIndex, ref triangleIndex, ref vertexIndex, triangles, vertices);

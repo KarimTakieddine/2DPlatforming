@@ -3,33 +3,54 @@
 [RequireComponent(typeof(SpriteRenderer))]
 public class PixelTile : MonoBehaviour
 {
-    public SpriteRenderer       SpriteRendererComponent { get; private set; }
-    public Sprite               SpriteComponent         { get; private set; }
+    public PixelLevel           CurrentPixelLevelInstance;
+    public SpriteRenderer       SpriteRendererComponent     { get; private set; }
+    public Sprite               SpriteComponent             { get; private set; }
 
+    public uint                 AlignedRelativePositionX    { get; private set; }
+    public uint                 AlignedRelativePositionY    { get; private set; }
     public uint                 TileSizeX, TileSizeY;
 
-    private void Awake()
+    public void AlignToPixelLevelGrid()
     {
         SpriteRendererComponent = GetComponent<SpriteRenderer>();
         SpriteComponent         = SpriteRendererComponent.sprite;
-    }
 
-    private void Update()
-    {
         if (!SpriteComponent)
         {
-            throw new UnityException("No Sprite2D instance assigned to PixelTime: " + name);
+            return;
         }
 
-        if (SpriteComponent.pixelsPerUnit != (float)PixelLevel.GlobalPixelsPerUnit)
+        if (!CurrentPixelLevelInstance)
         {
-            throw new UnityException(
-                "Assigned Sprite2D instance's \"Pixels per Unit settings\" are not a multiple of the global value" +
-                PixelLevel.GlobalPixelsPerUnit +
-                " for PixelTile: " + name
-            );
+            return;
         }
 
-        transform.localScale = new Vector2(TileSizeX, TileSizeY);
+        Texture2D spriteTexture     = SpriteComponent.texture;
+        float spritePixelsPerUnit   = SpriteComponent.pixelsPerUnit;
+
+        transform.localScale        = new Vector3(
+            TileSizeX * spritePixelsPerUnit / spriteTexture.width,
+            TileSizeY * spritePixelsPerUnit / spriteTexture.height
+        );
+
+        float halfTileWidth         = 0.5f * TileSizeX;
+        float halfTileHeight        = 0.5f * TileSizeY;
+
+        Vector3 position            = transform.position;
+        int alignedAbsPositionX     = Mathf.RoundToInt(position.x - halfTileWidth);
+        int alignedAbsPositionY     = Mathf.RoundToInt(position.y - halfTileHeight);
+        uint levelPixelsPerUnit     = CurrentPixelLevelInstance.PixelsPerUnit;
+        uint levelAlignedOriginX    = CurrentPixelLevelInstance.InternalPixelOriginX / levelPixelsPerUnit;
+        uint levelAlignedOriginY    = CurrentPixelLevelInstance.InternalPixelOriginY / levelPixelsPerUnit;
+        int alignedRelPositionX     = alignedAbsPositionX - (int)levelAlignedOriginX;
+        int alignedRelPositionY     = alignedAbsPositionY - (int)levelAlignedOriginY;
+        AlignedRelativePositionX    = (alignedRelPositionX < 0 ? 0 : (uint)alignedRelPositionX);
+        AlignedRelativePositionY    = (alignedRelPositionY < 0 ? 0 : (uint)alignedRelPositionY);
+
+        transform.position          = new Vector3(
+            levelAlignedOriginX + AlignedRelativePositionX + halfTileWidth,
+            levelAlignedOriginY + AlignedRelativePositionY + halfTileHeight
+        );
     }
 };

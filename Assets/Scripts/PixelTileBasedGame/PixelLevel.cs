@@ -1,64 +1,43 @@
 ﻿using UnityEngine;
 
 [ExecuteInEditMode]
-[RequireComponent(typeof(LevelGrid))]
 public class PixelLevel : MonoBehaviour
 {
-    public static PixelLevel    GlobalInstance      { get; private set; }
-    public LevelGrid            LevelGridComponent  { get; private set; }
-    public static uint          GlobalPixelsPerUnit { get; private set; }
+    [HideInInspector]
+    public LevelGrid            LevelGridComponent      { get; private set; }
+    public uint                 InternalPixelOriginX    { get; private set; }
+    public uint                 InternalPixelOriginY    { get; private set; }
+    public uint                 InternalPixelWidth      { get; private set; }
+    public uint                 InternalPixelHeight     { get; private set; }
 
     public uint                 PixelsPerUnit;
-    public uint                 OriginX, OriginY;
+    public uint                 PixelOriginX, PixelOriginY;
+    
     public uint                 PixelWidth, PixelHeight;
 
-    public static uint FindClosestMultipleOf(
-        uint number,
-        uint multiple
-    )
+	private void Update ()
     {
-        for (uint i = number; i > 0; --i)
+        LevelGridComponent = GetComponent<LevelGrid>();
+
+        if (!LevelGridComponent)
         {
-            if ((i % multiple) == 0)
-            {
-                return i;
-            }
+            LevelGridComponent = gameObject.AddComponent<LevelGrid>();
         }
 
-        return 0;
-    }
-
-    public static void InitializeGlobalInstance()
-    {
-        if (!GlobalInstance)
+        if (PixelsPerUnit == 0)
         {
-            PixelLevel[] AllPixelLevels = FindObjectsOfType<PixelLevel>();
-
-            if (AllPixelLevels.Length > 1)
-            {
-                throw new UnityException("Cannot create more than one static PixelLevel!");
-            }
-
-            GlobalInstance = AllPixelLevels[0];
+            PixelsPerUnit = 1;
         }
-    }
-
-	void Awake ()
-    {
-        InitializeGlobalInstance();
-        GlobalPixelsPerUnit             = PixelsPerUnit;
-        LevelGridComponent              = GetComponent<LevelGrid>();
-        LevelGridComponent.CellSizeX    = 1;
-        LevelGridComponent.CellSizeY    = 1;
-        LevelGridComponent.InitializeComponents();
-    }
-
-	void Update ()
-    {
-        LevelGridComponent.OriginX              = OriginX;
-        LevelGridComponent.OriginY              = OriginY;
-        LevelGridComponent.HorizontalCellCount  = FindClosestMultipleOf(PixelWidth, PixelsPerUnit) / PixelsPerUnit;
-        LevelGridComponent.VerticalCellCount    = FindClosestMultipleOf(PixelHeight, PixelsPerUnit) / PixelsPerUnit;
-        LevelGridComponent.UpdateComponents();
+        
+        InternalPixelOriginX                    = Mathematics.FindClosestMultipleOf(PixelOriginX, PixelsPerUnit);
+        InternalPixelOriginY                    = Mathematics.FindClosestMultipleOf(PixelOriginY, PixelsPerUnit);
+        InternalPixelWidth                      = Mathematics.FindClosestMultipleOf(PixelWidth, PixelsPerUnit);
+        InternalPixelHeight                     = Mathematics.FindClosestMultipleOf(PixelHeight, PixelsPerUnit);
+        LevelGridComponent.Origin               = new Vector2(InternalPixelOriginX / PixelsPerUnit, InternalPixelOriginY / PixelsPerUnit);
+        LevelGridComponent.HorizontalCellCount  = (int)(InternalPixelWidth / PixelsPerUnit);
+        LevelGridComponent.VerticalCellCount    = (int)(InternalPixelHeight / PixelsPerUnit);
+        LevelGridComponent.CellSize             = new Vector2(1.0f, 1.0f);
+        LevelGridComponent.Awake();
+        LevelGridComponent.Update();
 	}
 };
