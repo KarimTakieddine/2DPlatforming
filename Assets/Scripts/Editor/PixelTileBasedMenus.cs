@@ -23,4 +23,18 @@ public static class PixelTileBasedMenus
             pixelTileComponent.CurrentPixelLevelInstance = firstPixelLevelFound;
         }
     }
+
+    [MenuItem("GameObject/Pixel Tile Based Game/Pixel Character")]
+    private static void CreatePixelCharacterInstance()
+    {
+        GameObject pixelTileGameObject  = new GameObject("Pixel Character");
+        PixelTile pixelTileComponent    = pixelTileGameObject.AddComponent<PixelCharacter>().GetComponent<PixelTile>();
+
+        PixelLevel firstPixelLevelFound = GameObject.FindObjectOfType<PixelLevel>();
+
+        if (firstPixelLevelFound)
+        {
+            pixelTileComponent.CurrentPixelLevelInstance = firstPixelLevelFound;
+        }
+    }
 }

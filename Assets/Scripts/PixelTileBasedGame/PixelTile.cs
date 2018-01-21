@@ -41,8 +41,8 @@ public class PixelTile : MonoBehaviour
         int alignedAbsPositionX     = Mathf.RoundToInt(position.x - halfTileWidth);
         int alignedAbsPositionY     = Mathf.RoundToInt(position.y - halfTileHeight);
         uint levelPixelsPerUnit     = CurrentPixelLevelInstance.PixelsPerUnit;
-        uint levelAlignedOriginX    = CurrentPixelLevelInstance.InternalPixelOriginX / levelPixelsPerUnit;
-        uint levelAlignedOriginY    = CurrentPixelLevelInstance.InternalPixelOriginY / levelPixelsPerUnit;
+        uint levelAlignedOriginX    = CurrentPixelLevelInstance.AlignedPixelOriginX / levelPixelsPerUnit;
+        uint levelAlignedOriginY    = CurrentPixelLevelInstance.AlignedPixelOriginY / levelPixelsPerUnit;
         int alignedRelPositionX     = alignedAbsPositionX - (int)levelAlignedOriginX;
         int alignedRelPositionY     = alignedAbsPositionY - (int)levelAlignedOriginY;
         AlignedRelativePositionX    = (alignedRelPositionX < 0 ? 0 : (uint)alignedRelPositionX);
