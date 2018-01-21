@@ -1,5 +1,12 @@
 ﻿using UnityEngine;
 
+public enum LevelFlags
+{
+    NONE        = 0x00000000,
+    OBSTACLE    = 0x00000001,
+    CHARACTER   = 0x00000002
+};
+
 [RequireComponent(typeof(SpriteRenderer))]
 public class PixelTile : MonoBehaviour
 {
@@ -10,6 +17,7 @@ public class PixelTile : MonoBehaviour
     public uint                 AlignedRelativePositionX    { get; private set; }
     public uint                 AlignedRelativePositionY    { get; private set; }
     public uint                 TileSizeX, TileSizeY;
+    public LevelFlags           LevelFlags;
 
     public void AlignToPixelLevelGrid()
     {

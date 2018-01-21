@@ -49,6 +49,7 @@ public class PixelLevel : MonoBehaviour
         {
             AlignState();
             InitializeLevelGridComponent();
+            PixelTileManager.SnapAllTilesToGrid();
         }
     }
 
