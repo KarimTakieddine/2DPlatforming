@@ -113,8 +113,8 @@ public class PixelCharacter : MonoBehaviour
         int currentPixelPositionX = PixelPositionX;
         int currentPixelPositionY = PixelPositionY;
 
-        PixelPositionY += PixelVelocityY;
-        PixelPositionX += PixelVelocityX;
+        PixelPositionY += Mathf.RoundToInt(PixelVelocityY * Time.deltaTime);
+        PixelPositionX += Mathf.RoundToInt(PixelVelocityX * Time.deltaTime);
 
         InitializePixelTileObstacleList();
         DetectAndResolveCollisions();
