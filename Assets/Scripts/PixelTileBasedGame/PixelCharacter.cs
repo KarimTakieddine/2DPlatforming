@@ -110,6 +110,9 @@ public class PixelCharacter : MonoBehaviour
 
         CurrentPixelLevelInstance = currentPixelLevelInstance;
 
+        int currentPixelPositionX = PixelPositionX;
+        int currentPixelPositionY = PixelPositionY;
+
         PixelPositionY += PixelVelocityY;
         PixelPositionX += PixelVelocityX;
 
@@ -117,9 +120,16 @@ public class PixelCharacter : MonoBehaviour
         DetectAndResolveCollisions();
 
         uint pixelsPerUnit = currentPixelLevelInstance.PixelsPerUnit;
-        transform.position = new Vector2(
+        transform.position = Vector3.MoveTowards(
+            new Vector3(
+                ((float)currentPixelPositionX / pixelsPerUnit) + 0.5f * PixelTileComponent.TileSizeX,
+                ((float)currentPixelPositionY / pixelsPerUnit) + 0.5f * PixelTileComponent.TileSizeY
+            ),
+            new Vector3(
             ((float)PixelPositionX / pixelsPerUnit) + 0.5f * PixelTileComponent.TileSizeX,
             ((float)PixelPositionY / pixelsPerUnit) + 0.5f * PixelTileComponent.TileSizeY
-       );
+            ),
+            Time.deltaTime
+        );
     }
 };
