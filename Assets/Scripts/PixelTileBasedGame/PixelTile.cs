@@ -14,10 +14,24 @@ public class PixelTile : MonoBehaviour
     public SpriteRenderer       SpriteRendererComponent     { get; private set; }
     public Sprite               SpriteComponent             { get; private set; }
 
-    public uint                 AlignedRelativePositionX    { get; private set; }
-    public uint                 AlignedRelativePositionY    { get; private set; }
-    public uint                 TileSizeX, TileSizeY;
-    public LevelFlags           LevelFlags;
+    public int                 AlignedRelativePositionX     { get; private set; }
+    public int                 AlignedRelativePositionY     { get; private set; }
+    public int                 TileSizeX, TileSizeY;
+    public LevelFlags          LevelFlags;
+
+    //In order to avoid casting when performing integer operations on position
+
+    private void ValidateState()
+    {
+        if (TileSizeX < 0)
+        {
+            TileSizeX = 0;
+        }
+        if (TileSizeY < 0)
+        {
+            TileSizeY = 0;
+        }
+    }
 
     public void AlignToPixelLevelGrid()
     {
@@ -48,17 +62,22 @@ public class PixelTile : MonoBehaviour
         Vector3 position            = transform.position;
         int alignedAbsPositionX     = Mathf.RoundToInt(position.x - halfTileWidth);
         int alignedAbsPositionY     = Mathf.RoundToInt(position.y - halfTileHeight);
-        uint levelPixelsPerUnit     = CurrentPixelLevelInstance.PixelsPerUnit;
-        uint levelAlignedOriginX    = CurrentPixelLevelInstance.AlignedPixelOriginX / levelPixelsPerUnit;
-        uint levelAlignedOriginY    = CurrentPixelLevelInstance.AlignedPixelOriginY / levelPixelsPerUnit;
-        int alignedRelPositionX     = alignedAbsPositionX - (int)levelAlignedOriginX;
-        int alignedRelPositionY     = alignedAbsPositionY - (int)levelAlignedOriginY;
-        AlignedRelativePositionX    = (alignedRelPositionX < 0 ? 0 : (uint)alignedRelPositionX);
-        AlignedRelativePositionY    = (alignedRelPositionY < 0 ? 0 : (uint)alignedRelPositionY);
+        int levelPixelsPerUnit      = CurrentPixelLevelInstance.PixelsPerUnit;
+        int levelAlignedOriginX     = CurrentPixelLevelInstance.AlignedPixelOriginX / levelPixelsPerUnit;
+        int levelAlignedOriginY     = CurrentPixelLevelInstance.AlignedPixelOriginY / levelPixelsPerUnit;
+        int alignedRelPositionX     = alignedAbsPositionX - levelAlignedOriginX;
+        int alignedRelPositionY     = alignedAbsPositionY - levelAlignedOriginY;
+        AlignedRelativePositionX    = (alignedRelPositionX < 0 ? 0 : alignedRelPositionX);
+        AlignedRelativePositionY    = (alignedRelPositionY < 0 ? 0 : alignedRelPositionY);
 
         transform.position          = new Vector3(
             levelAlignedOriginX + AlignedRelativePositionX + halfTileWidth,
             levelAlignedOriginY + AlignedRelativePositionY + halfTileHeight
         );
+    }
+
+    private void Awake()
+    {
+        ValidateState();
     }
 };

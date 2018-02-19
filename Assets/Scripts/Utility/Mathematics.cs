@@ -2,12 +2,12 @@
 
 public static class Mathematics
 {
-    public static uint FindClosestMultipleOf(
-        uint number,
-        uint multiple
+    public static int FindClosestMultipleOf(
+        int number,
+        int multiple
     )
     {
-        for (uint i = number; i > 0; --i)
+        for (int i = number; i > 0; --i)
         {
             if ((i % multiple) == 0)
             {

@@ -1,5 +1,17 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
+using System.Linq;
+
+//Perhaps optimize into a structure of ushorts as flag bits instead?
+
+enum PixelDirectionFlags
+{
+    NONE    = 0x00,  //0b00000000
+    LEFT    = 0x01,  //0b00000001
+    RIGHT   = 0x02,  //0b00000010
+    UP      = 0x04,  //0b00000100
+    DOWN    = 0x08   //0b00001000
+};
 
 [RequireComponent(typeof(PixelTile))]
 public class PixelCharacter : MonoBehaviour
@@ -10,10 +22,12 @@ public class PixelCharacter : MonoBehaviour
     public int                      PixelPositionX              { get; private set; }
     public int                      PixelPositionY              { get; private set; }
     public int                      CurrentPixelTileCount       { get; private set; }
+    
+    private PixelDirectionFlags     PixelDirectionFlag;
 
     public int PixelVelocityX, PixelVelocityY;
 
-    public void InitializePixelTileObstacleList()
+    protected virtual void InitializePixelTileObstacleList()
     {
         if (PixelTileObstacleList == null)
         {
@@ -43,6 +57,119 @@ public class PixelCharacter : MonoBehaviour
         CurrentPixelTileCount = pixelTileCount;
     }
 
+    protected virtual void ComputeVelocity()
+    {
+
+    }
+
+    private void SetHorizontalDirectionFlag()
+    {
+        if (PixelVelocityX > 0)
+        {
+            PixelDirectionFlag |= PixelDirectionFlags.RIGHT;
+            PixelDirectionFlag &= ~PixelDirectionFlags.LEFT;
+        }
+        else if (PixelVelocityX < 0)
+        {
+            PixelDirectionFlag |= PixelDirectionFlags.LEFT;
+            PixelDirectionFlag &= ~PixelDirectionFlags.RIGHT;
+        }
+        else
+        {
+            //Neutral
+
+            PixelDirectionFlag &= ~PixelDirectionFlags.LEFT;
+            PixelDirectionFlag &= ~PixelDirectionFlags.RIGHT;
+        }
+    }
+
+    private void SetVerticalDirectionFlag()
+    {
+        if (PixelVelocityY > 0)
+        {
+            PixelDirectionFlag |= PixelDirectionFlags.UP;
+            PixelDirectionFlag &= ~PixelDirectionFlags.DOWN;
+        }
+        else if (PixelVelocityY < 0)
+        {
+            PixelDirectionFlag |= PixelDirectionFlags.DOWN;
+            PixelDirectionFlag &= ~PixelDirectionFlags.UP;
+        }
+        else
+        {
+            //Neutral
+
+            PixelDirectionFlag &= ~PixelDirectionFlags.UP;
+            PixelDirectionFlag &= ~PixelDirectionFlags.DOWN;
+        }
+    }
+
+    private void SetDirectionFlags()
+    {
+        SetHorizontalDirectionFlag();
+        SetVerticalDirectionFlag();
+    }
+
+    private void GetPredictedPixelPositions(
+        ref int predictedPositionX,
+        ref int predictedPositionY,
+        int pixelPositionX,
+        int pixelPositionY,
+        int tileSizeX,
+        int tileSizeY,
+        int pixelsPerUnit
+    )
+    {
+        if ((PixelDirectionFlag & PixelDirectionFlags.LEFT) == PixelDirectionFlags.LEFT)
+        {
+            predictedPositionX = pixelPositionX;
+        }
+        else if ((PixelDirectionFlag & PixelDirectionFlags.RIGHT) == PixelDirectionFlags.RIGHT)
+        {
+            predictedPositionX = pixelPositionX + tileSizeX * pixelsPerUnit;
+        }
+
+        if ((PixelDirectionFlag & PixelDirectionFlags.UP) == PixelDirectionFlags.UP)
+        {
+            predictedPositionY = pixelPositionY + tileSizeY * pixelsPerUnit;
+        }
+
+        if ((PixelDirectionFlag & PixelDirectionFlags.DOWN) == PixelDirectionFlags.DOWN)
+        {
+            predictedPositionY = pixelPositionY;
+        }
+    }
+
+    private void GetObstaclePixelPositions(
+        ref int obstaclePositionX,
+        ref int obstaclePositionY,
+        int pixelPositionX,
+        int pixelPositionY,
+        int tileSizeX,
+        int tileSizeY,
+        int pixelsPerUnit
+    )
+    {
+        if ((PixelDirectionFlag & PixelDirectionFlags.LEFT) == PixelDirectionFlags.LEFT)
+        {
+            obstaclePositionX = pixelPositionX + tileSizeX * pixelsPerUnit;
+        }
+        else if ((PixelDirectionFlag & PixelDirectionFlags.RIGHT) == PixelDirectionFlags.RIGHT)
+        {
+            obstaclePositionX = pixelPositionX;
+        }
+
+        if ((PixelDirectionFlag & PixelDirectionFlags.UP) == PixelDirectionFlags.UP)
+        {
+            obstaclePositionY = pixelPositionY;
+        }
+
+        if ((PixelDirectionFlag & PixelDirectionFlags.DOWN) == PixelDirectionFlags.DOWN)
+        {
+            obstaclePositionY = pixelPositionY + tileSizeY * pixelsPerUnit;
+        }
+    }
+    
     private void Start()
     {
         PixelTileComponent                      = GetComponent<PixelTile>();
@@ -57,44 +184,74 @@ public class PixelCharacter : MonoBehaviour
         transform.position          = Vector2.zero;
         PixelTileComponent.AlignToPixelLevelGrid();
 
-        uint pixelsPerUnit  = currentPixelLevelInstance.PixelsPerUnit;
-        PixelPositionX      = (int)(currentPixelLevelInstance.AlignedPixelOriginX + (PixelTileComponent.AlignedRelativePositionX * pixelsPerUnit));
-        PixelPositionY      = (int)(currentPixelLevelInstance.AlignedPixelOriginY + (PixelTileComponent.AlignedRelativePositionY * pixelsPerUnit));
+        int pixelsPerUnit   = currentPixelLevelInstance.PixelsPerUnit;
+        PixelPositionX      = currentPixelLevelInstance.AlignedPixelOriginX + PixelTileComponent.AlignedRelativePositionX * pixelsPerUnit;
+        PixelPositionY      = currentPixelLevelInstance.AlignedPixelOriginY + PixelTileComponent.AlignedRelativePositionY * pixelsPerUnit;
     }
 
     private void DetectAndResolveCollisions()
     {
-        int integerPixelsPerUnit = (int)CurrentPixelLevelInstance.PixelsPerUnit;
+        int pixelsPerUnit       = CurrentPixelLevelInstance.PixelsPerUnit;
+        int predictedPositionX  = 0;
+        int predictedPositionY  = 0;
+        int tileSizeX           = PixelTileComponent.TileSizeX;
+        int tileSizeY           = PixelTileComponent.TileSizeY;
 
         for (int j = 0; j < PixelTileObstacleList.Count; ++j)
         {
             PixelTile obstaclePixelTileComponent    = PixelTileObstacleList[j];
-            int predictedPixelPositionX             = PixelPositionX + (int)PixelTileComponent.TileSizeX * integerPixelsPerUnit;
-            int predictedPixelPositionY             = PixelPositionY + (int)PixelTileComponent.TileSizeY * integerPixelsPerUnit;
-            int obstaclePixelPositionX              = (int)CurrentPixelLevelInstance.AlignedPixelOriginX + (int)obstaclePixelTileComponent.AlignedRelativePositionX * integerPixelsPerUnit;
-            int obstaclePixelPositionY              = (int)CurrentPixelLevelInstance.AlignedPixelOriginY + (int)obstaclePixelTileComponent.AlignedRelativePositionY * integerPixelsPerUnit;
+            GetPredictedPixelPositions(ref predictedPositionX, ref predictedPositionY, PixelPositionX, PixelPositionY, tileSizeX, tileSizeY, pixelsPerUnit);
 
+            int obstacleMinimumX                    = CurrentPixelLevelInstance.AlignedPixelOriginX + obstaclePixelTileComponent.AlignedRelativePositionX * pixelsPerUnit;
+            int obstacleMaximumX                    = obstacleMinimumX + obstaclePixelTileComponent.TileSizeX * pixelsPerUnit;
+            int obstacleMinimumY                    = CurrentPixelLevelInstance.AlignedPixelOriginY + obstaclePixelTileComponent.AlignedRelativePositionY * pixelsPerUnit;
+            int obstacleMaximumY                    = obstacleMinimumY + obstaclePixelTileComponent.TileSizeY * pixelsPerUnit;
+
+            int pixelMinimumX                       = PixelPositionX;
+            int pixelMaximumX                       = PixelPositionX + tileSizeX * pixelsPerUnit;
+            int pixelMinimumY                       = PixelPositionY;
+            int pixelMaximumY                       = PixelPositionY + tileSizeY * pixelsPerUnit;
+
+            /*
+            int obstaclePixelPositionX              = CurrentPixelLevelInstance.AlignedPixelOriginX + obstaclePixelTileComponent.AlignedRelativePositionX * pixelsPerUnit;
+            int obstaclePixelPositionY              = CurrentPixelLevelInstance.AlignedPixelOriginY + obstaclePixelTileComponent.AlignedRelativePositionY * pixelsPerUnit;
+            int obstaclePositionX                   = 0;
+            int obstaclePositionY                   = 0;
+            */
+            
             if (
-                obstaclePixelPositionY > predictedPixelPositionY                                                        ||
-                PixelPositionY > obstaclePixelPositionY + obstaclePixelTileComponent.TileSizeY * integerPixelsPerUnit   ||
-                obstaclePixelPositionX > predictedPixelPositionX                                                        ||
-                PixelPositionX > obstaclePixelPositionX + obstaclePixelTileComponent.TileSizeX * integerPixelsPerUnit
+                obstacleMinimumY > pixelMaximumY   ||
+                pixelMinimumY > obstacleMaximumY   ||
+                obstacleMinimumX > pixelMaximumX   ||
+                pixelMinimumX > obstacleMaximumX
             )
             {
                 continue;
             }
 
-            int pixelDifferenceX    = predictedPixelPositionX - obstaclePixelPositionX;
-            int pixelDifferenceY    = predictedPixelPositionY - obstaclePixelPositionY;
-            int differenceMinimum   = Mathf.Min(pixelDifferenceX, pixelDifferenceY);
+            int firstPixelDifferenceX    = pixelMaximumX - obstacleMinimumX;
+            int secondPixelDifferenceX   = obstacleMaximumX - pixelMinimumX;
+            int firstPixelDifferenceY    = pixelMaximumY - obstacleMinimumY;
+            int secondPixelDifferenceY   = obstacleMaximumY - pixelMinimumY;
 
-            if (differenceMinimum == pixelDifferenceX)
+            int[] differences       = new int[4] { firstPixelDifferenceX, secondPixelDifferenceX, firstPixelDifferenceY, secondPixelDifferenceY };
+            int differenceMinimum   = differences.Min();
+
+            if (differenceMinimum == differences[0])
             {
-                PixelPositionX -= pixelDifferenceX;
+                PixelPositionX -= differences[0];
             }
-            else if (differenceMinimum == pixelDifferenceY)
+            if (differenceMinimum == differences[1])
             {
-                PixelPositionY -= pixelDifferenceY;
+                PixelPositionX += differences[1];
+            }
+            if (differenceMinimum == differences[2])
+            {
+                PixelPositionY -= differences[2];
+            }
+            if (differenceMinimum == differences[3])
+            {
+                PixelPositionY += differences[3];
             }
         }
     }
@@ -117,10 +274,11 @@ public class PixelCharacter : MonoBehaviour
         PixelPositionX += Mathf.RoundToInt(PixelVelocityX * Time.deltaTime);
 
         InitializePixelTileObstacleList();
+        SetDirectionFlags();
         DetectAndResolveCollisions();
 
-        uint pixelsPerUnit = currentPixelLevelInstance.PixelsPerUnit;
-        transform.position = Vector3.MoveTowards(
+        int pixelsPerUnit   = currentPixelLevelInstance.PixelsPerUnit;
+        transform.position  = Vector3.MoveTowards(
             new Vector3(
                 ((float)currentPixelPositionX / pixelsPerUnit) + 0.5f * PixelTileComponent.TileSizeX,
                 ((float)currentPixelPositionY / pixelsPerUnit) + 0.5f * PixelTileComponent.TileSizeY

@@ -4,24 +4,37 @@
 public class PixelLevel : MonoBehaviour
 {
     [HideInInspector]
-    public LevelGrid            LevelGridComponent      { get; private set; }
-    public uint                 AlignedPixelOriginX     { get; private set; }
-    public uint                 AlignedPixelOriginY     { get; private set; }
-    public uint                 AlignedPixelWidth       { get; private set; }
-    public uint                 AlignedPixelHeight      { get; private set; }
+    public LevelGrid    LevelGridComponent      { get; private set; }
+    public int          AlignedPixelOriginX     { get; private set; }
+    public int          AlignedPixelOriginY     { get; private set; }
+    public int          AlignedPixelWidth       { get; private set; }
+    public int          AlignedPixelHeight      { get; private set; }
 
-    public uint                 PixelsPerUnit;
-    public uint                 PixelOriginX, PixelOriginY;
+    public int          PixelsPerUnit;
+    public int          PixelOriginX, PixelOriginY;
     
-    public uint                 PixelWidth, PixelHeight;
+    public int          PixelWidth, PixelHeight;
 
-    private void AlignState()
+    private void ValidateState()
     {
-        if (PixelsPerUnit == 0)
+        if (PixelsPerUnit <= 0)
         {
             PixelsPerUnit = 1;
         }
 
+        if (PixelHeight < 0)
+        {
+            PixelHeight = 0;
+        }
+
+        if (PixelWidth < 0)
+        {
+            PixelWidth = 0;
+        }
+    }
+
+    private void AlignState()
+    {
         AlignedPixelOriginX     = Mathematics.FindClosestMultipleOf(PixelOriginX, PixelsPerUnit);
         AlignedPixelOriginY     = Mathematics.FindClosestMultipleOf(PixelOriginY, PixelsPerUnit);
         AlignedPixelWidth       = Mathematics.FindClosestMultipleOf(PixelWidth, PixelsPerUnit);
@@ -38,8 +51,8 @@ public class PixelLevel : MonoBehaviour
         }
 
         LevelGridComponent.Origin               = new Vector2(AlignedPixelOriginX / PixelsPerUnit, AlignedPixelOriginY / PixelsPerUnit);
-        LevelGridComponent.HorizontalCellCount  = (int)(AlignedPixelWidth / PixelsPerUnit);
-        LevelGridComponent.VerticalCellCount    = (int)(AlignedPixelHeight / PixelsPerUnit);
+        LevelGridComponent.HorizontalCellCount  = AlignedPixelWidth / PixelsPerUnit;
+        LevelGridComponent.VerticalCellCount    = AlignedPixelHeight / PixelsPerUnit;
         LevelGridComponent.CellSize             = new Vector2(1.0f, 1.0f);
     }
 
@@ -47,6 +60,7 @@ public class PixelLevel : MonoBehaviour
     {
         if (Application.isPlaying)
         {
+            ValidateState();
             AlignState();
             InitializeLevelGridComponent();
             PixelTileManager.SnapAllTilesToGrid();
@@ -57,6 +71,7 @@ public class PixelLevel : MonoBehaviour
     {
         if (!Application.isPlaying)
         {
+            ValidateState();
             AlignState();
             InitializeLevelGridComponent();
             LevelGridComponent.Awake();
