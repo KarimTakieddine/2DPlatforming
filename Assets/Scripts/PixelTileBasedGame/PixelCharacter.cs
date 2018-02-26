@@ -26,6 +26,8 @@ public class PixelCharacter : MonoBehaviour
     private PixelDirectionFlags     PixelDirectionFlag;
 
     public int PixelVelocityX, PixelVelocityY;
+    private float VelocityX, VelocityY, JumpStateTimer;
+    private bool isJumping;
 
     protected virtual void InitializePixelTileObstacleList()
     {
@@ -59,17 +61,23 @@ public class PixelCharacter : MonoBehaviour
 
     protected virtual void ComputeVelocity()
     {
+        VelocityX = PixelVelocityX * Time.deltaTime;
 
+        float durationToPeak    = 2304.0f / PixelVelocityX;
+        float initialVelocityY  = 48.0f * 2.0f / durationToPeak;
+        float gravity           = -256.0f * 2.0f / (durationToPeak * durationToPeak);
+
+        VelocityY = isJumping ? gravity * JumpStateTimer + initialVelocityY : PixelVelocityY * Time.deltaTime;
     }
 
     private void SetHorizontalDirectionFlag()
     {
-        if (PixelVelocityX > 0)
+        if (VelocityX > 0.0f)
         {
             PixelDirectionFlag |= PixelDirectionFlags.RIGHT;
             PixelDirectionFlag &= ~PixelDirectionFlags.LEFT;
         }
-        else if (PixelVelocityX < 0)
+        else if (VelocityX < 0.0f)
         {
             PixelDirectionFlag |= PixelDirectionFlags.LEFT;
             PixelDirectionFlag &= ~PixelDirectionFlags.RIGHT;
@@ -85,12 +93,12 @@ public class PixelCharacter : MonoBehaviour
 
     private void SetVerticalDirectionFlag()
     {
-        if (PixelVelocityY > 0)
+        if (VelocityY > 0.0f)
         {
             PixelDirectionFlag |= PixelDirectionFlags.UP;
             PixelDirectionFlag &= ~PixelDirectionFlags.DOWN;
         }
-        else if (PixelVelocityY < 0)
+        else if (VelocityY < 0.0f)
         {
             PixelDirectionFlag |= PixelDirectionFlags.DOWN;
             PixelDirectionFlag &= ~PixelDirectionFlags.UP;
@@ -109,66 +117,6 @@ public class PixelCharacter : MonoBehaviour
         SetHorizontalDirectionFlag();
         SetVerticalDirectionFlag();
     }
-
-    private void GetPredictedPixelPositions(
-        ref int predictedPositionX,
-        ref int predictedPositionY,
-        int pixelPositionX,
-        int pixelPositionY,
-        int tileSizeX,
-        int tileSizeY,
-        int pixelsPerUnit
-    )
-    {
-        if ((PixelDirectionFlag & PixelDirectionFlags.LEFT) == PixelDirectionFlags.LEFT)
-        {
-            predictedPositionX = pixelPositionX;
-        }
-        else if ((PixelDirectionFlag & PixelDirectionFlags.RIGHT) == PixelDirectionFlags.RIGHT)
-        {
-            predictedPositionX = pixelPositionX + tileSizeX * pixelsPerUnit;
-        }
-
-        if ((PixelDirectionFlag & PixelDirectionFlags.UP) == PixelDirectionFlags.UP)
-        {
-            predictedPositionY = pixelPositionY + tileSizeY * pixelsPerUnit;
-        }
-
-        if ((PixelDirectionFlag & PixelDirectionFlags.DOWN) == PixelDirectionFlags.DOWN)
-        {
-            predictedPositionY = pixelPositionY;
-        }
-    }
-
-    private void GetObstaclePixelPositions(
-        ref int obstaclePositionX,
-        ref int obstaclePositionY,
-        int pixelPositionX,
-        int pixelPositionY,
-        int tileSizeX,
-        int tileSizeY,
-        int pixelsPerUnit
-    )
-    {
-        if ((PixelDirectionFlag & PixelDirectionFlags.LEFT) == PixelDirectionFlags.LEFT)
-        {
-            obstaclePositionX = pixelPositionX + tileSizeX * pixelsPerUnit;
-        }
-        else if ((PixelDirectionFlag & PixelDirectionFlags.RIGHT) == PixelDirectionFlags.RIGHT)
-        {
-            obstaclePositionX = pixelPositionX;
-        }
-
-        if ((PixelDirectionFlag & PixelDirectionFlags.UP) == PixelDirectionFlags.UP)
-        {
-            obstaclePositionY = pixelPositionY;
-        }
-
-        if ((PixelDirectionFlag & PixelDirectionFlags.DOWN) == PixelDirectionFlags.DOWN)
-        {
-            obstaclePositionY = pixelPositionY + tileSizeY * pixelsPerUnit;
-        }
-    }
     
     private void Start()
     {
@@ -180,44 +128,35 @@ public class PixelCharacter : MonoBehaviour
             return;
         }
 
-        CurrentPixelLevelInstance   = currentPixelLevelInstance;
-        transform.position          = Vector2.zero;
+        CurrentPixelLevelInstance = currentPixelLevelInstance;
         PixelTileComponent.AlignToPixelLevelGrid();
 
         int pixelsPerUnit   = currentPixelLevelInstance.PixelsPerUnit;
-        PixelPositionX      = currentPixelLevelInstance.AlignedPixelOriginX + PixelTileComponent.AlignedRelativePositionX * pixelsPerUnit;
-        PixelPositionY      = currentPixelLevelInstance.AlignedPixelOriginY + PixelTileComponent.AlignedRelativePositionY * pixelsPerUnit;
+        PixelPositionX      = currentPixelLevelInstance.PixelOriginX + PixelTileComponent.AlignedRelativePositionX * pixelsPerUnit;
+        PixelPositionY      = currentPixelLevelInstance.PixelOriginY + PixelTileComponent.AlignedRelativePositionY * pixelsPerUnit;
+        JumpStateTimer      = 0.0f;
+        isJumping           = false;
     }
 
     private void DetectAndResolveCollisions()
     {
-        int pixelsPerUnit       = CurrentPixelLevelInstance.PixelsPerUnit;
-        int predictedPositionX  = 0;
-        int predictedPositionY  = 0;
-        int tileSizeX           = PixelTileComponent.TileSizeX;
-        int tileSizeY           = PixelTileComponent.TileSizeY;
+        int pixelsPerUnit   = CurrentPixelLevelInstance.PixelsPerUnit;
+        int tileSizeX       = PixelTileComponent.TileSizeX;
+        int tileSizeY       = PixelTileComponent.TileSizeY;
 
         for (int j = 0; j < PixelTileObstacleList.Count; ++j)
         {
             PixelTile obstaclePixelTileComponent    = PixelTileObstacleList[j];
-            GetPredictedPixelPositions(ref predictedPositionX, ref predictedPositionY, PixelPositionX, PixelPositionY, tileSizeX, tileSizeY, pixelsPerUnit);
 
-            int obstacleMinimumX                    = CurrentPixelLevelInstance.AlignedPixelOriginX + obstaclePixelTileComponent.AlignedRelativePositionX * pixelsPerUnit;
+            int obstacleMinimumX                    = CurrentPixelLevelInstance.PixelOriginX + obstaclePixelTileComponent.AlignedRelativePositionX * pixelsPerUnit;
             int obstacleMaximumX                    = obstacleMinimumX + obstaclePixelTileComponent.TileSizeX * pixelsPerUnit;
-            int obstacleMinimumY                    = CurrentPixelLevelInstance.AlignedPixelOriginY + obstaclePixelTileComponent.AlignedRelativePositionY * pixelsPerUnit;
+            int obstacleMinimumY                    = CurrentPixelLevelInstance.PixelOriginY + obstaclePixelTileComponent.AlignedRelativePositionY * pixelsPerUnit;
             int obstacleMaximumY                    = obstacleMinimumY + obstaclePixelTileComponent.TileSizeY * pixelsPerUnit;
 
             int pixelMinimumX                       = PixelPositionX;
             int pixelMaximumX                       = PixelPositionX + tileSizeX * pixelsPerUnit;
             int pixelMinimumY                       = PixelPositionY;
             int pixelMaximumY                       = PixelPositionY + tileSizeY * pixelsPerUnit;
-
-            /*
-            int obstaclePixelPositionX              = CurrentPixelLevelInstance.AlignedPixelOriginX + obstaclePixelTileComponent.AlignedRelativePositionX * pixelsPerUnit;
-            int obstaclePixelPositionY              = CurrentPixelLevelInstance.AlignedPixelOriginY + obstaclePixelTileComponent.AlignedRelativePositionY * pixelsPerUnit;
-            int obstaclePositionX                   = 0;
-            int obstaclePositionY                   = 0;
-            */
             
             if (
                 obstacleMinimumY > pixelMaximumY   ||
@@ -270,8 +209,16 @@ public class PixelCharacter : MonoBehaviour
         int currentPixelPositionX = PixelPositionX;
         int currentPixelPositionY = PixelPositionY;
 
-        PixelPositionY += Mathf.RoundToInt(PixelVelocityY * Time.deltaTime);
-        PixelPositionX += Mathf.RoundToInt(PixelVelocityX * Time.deltaTime);
+        if (Input.GetButtonDown("Jump"))
+        {
+            isJumping       = true;
+            JumpStateTimer  = 0.0f;
+        }
+
+        ComputeVelocity();
+
+        PixelPositionX += Mathf.RoundToInt(VelocityX);
+        PixelPositionY += Mathf.RoundToInt(VelocityY);
 
         InitializePixelTileObstacleList();
         SetDirectionFlags();
@@ -289,5 +236,7 @@ public class PixelCharacter : MonoBehaviour
             ),
             Time.deltaTime
         );
+
+        JumpStateTimer += Time.deltaTime;
     }
 };
