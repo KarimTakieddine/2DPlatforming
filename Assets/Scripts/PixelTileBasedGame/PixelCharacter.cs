@@ -2,31 +2,39 @@
 using System.Collections.Generic;
 using System.Linq;
 
-//Perhaps optimize into a structure of ushorts as flag bits instead?
-
-enum PixelDirectionFlags
+[System.Flags]
+public enum InputSourceFlags
 {
-    NONE    = 0x00,  //0b00000000
-    LEFT    = 0x01,  //0b00000001
-    RIGHT   = 0x02,  //0b00000010
-    UP      = 0x04,  //0b00000100
-    DOWN    = 0x08   //0b00001000
+    NONE        = 0,
+    JOYSTICK    = 1,
+    KEYBOARD    = 1 << 1
+};
+
+[System.Flags]
+public enum CollisionNormalFlags
+{
+    NONE        = 0,
+    LEFT_WALL   = 1,
+    RIGHT_WALL  = 1 << 1,
+    CEILING     = 1 << 2,
+    GROUND      = 1 << 3
 };
 
 [RequireComponent(typeof(PixelTile))]
 public class PixelCharacter : MonoBehaviour
 {
-    public static List<PixelTile>   PixelTileObstacleList       { get; private set; }
-    public PixelLevel               CurrentPixelLevelInstance   { get; private set; }
-    public PixelTile                PixelTileComponent          { get; private set; }
-    public int                      PixelPositionX              { get; private set; }
-    public int                      PixelPositionY              { get; private set; }
-    public int                      CurrentPixelTileCount       { get; private set; }
+    public static List<PixelTile>                   PixelTileObstacleList       { get; private set; }
+    public Dictionary<int, CollisionNormalFlags>    CollisionNormalStateMap     { get; protected set; }
+    public PixelLevel                               CurrentPixelLevelInstance   { get; private set; }
+    public PixelTile                                PixelTileComponent          { get; private set; }
+    public InputSourceFlags                         InputSourceFlag             { get; private set; }
+    public CollisionNormalFlags                     CollisionNormalFlag         { get; protected set;}
+    public int                                      PixelPositionX              { get; private set; }
+    public int                                      PixelPositionY              { get; private set; }
+    public int                                      CurrentPixelTileCount       { get; private set; }
     
-    private PixelDirectionFlags     PixelDirectionFlag;
-
     public int PixelVelocityX, PixelVelocityY;
-    private float VelocityX, VelocityY, JumpStateTimer;
+    private float VelocityX, PreviousVelocityX, VelocityY, JumpStateTimer;
     private bool isJumping;
 
     protected virtual void InitializePixelTileObstacleList()
@@ -59,66 +67,78 @@ public class PixelCharacter : MonoBehaviour
         CurrentPixelTileCount = pixelTileCount;
     }
 
-    protected virtual void ComputeVelocity()
+    private void SetInputSourceFlag(
+        bool isKeyPressed,
+        Vector2 josytickInput
+    )
     {
-        VelocityX = PixelVelocityX * Time.deltaTime;
+        if (josytickInput.magnitude != 0.0f)
+        {
+            if ((InputSourceFlag & InputSourceFlags.KEYBOARD) == InputSourceFlags.KEYBOARD)
+            {
+                InputSourceFlag &= ~InputSourceFlags.KEYBOARD;
+            }
+
+            InputSourceFlag |= InputSourceFlags.JOYSTICK;
+        }
+        if (isKeyPressed)
+        {
+            if ((InputSourceFlag & InputSourceFlags.JOYSTICK) == InputSourceFlags.JOYSTICK)
+            {
+                InputSourceFlag &= ~InputSourceFlags.JOYSTICK;
+            }
+
+            InputSourceFlag |= InputSourceFlags.KEYBOARD;
+        }
+    }
+
+    private int GetInputMultiplier(Vector2 joystickInput)
+    {
+        float inputX = joystickInput.x;
+        return inputX == 0 ? 0 : (inputX < 0.0f ? -1 : 1);
+    }
+
+    protected virtual void ComputeVelocity(
+        ref bool isKeyPressed,
+        Vector2 josytickInput
+    )
+    {
+        int keyMultiplier = 0;
+
+        if (Input.GetKey(KeyCode.LeftArrow))
+        {
+            keyMultiplier   = -1;
+            isKeyPressed    = true;
+        }
+        else if (Input.GetKey(KeyCode.RightArrow))
+        {
+            keyMultiplier   = 1;
+            isKeyPressed    = true;
+        }
+
+        VelocityX = (isJumping ? PreviousVelocityX : (isKeyPressed ? keyMultiplier : GetInputMultiplier(josytickInput)) * PixelVelocityX) * Time.deltaTime;
 
         float durationToPeak    = 2304.0f / PixelVelocityX;
         float initialVelocityY  = 48.0f * 2.0f / durationToPeak;
         float gravity           = -256.0f * 2.0f / (durationToPeak * durationToPeak);
 
         VelocityY = isJumping ? gravity * JumpStateTimer + initialVelocityY : PixelVelocityY * Time.deltaTime;
-    }
 
-    private void SetHorizontalDirectionFlag()
-    {
-        if (VelocityX > 0.0f)
+        if (VelocityX < 0.0f)
         {
-            PixelDirectionFlag |= PixelDirectionFlags.RIGHT;
-            PixelDirectionFlag &= ~PixelDirectionFlags.LEFT;
+            PreviousVelocityX = -PixelVelocityX;
         }
-        else if (VelocityX < 0.0f)
+        else if (VelocityX > 0.0f)
         {
-            PixelDirectionFlag |= PixelDirectionFlags.LEFT;
-            PixelDirectionFlag &= ~PixelDirectionFlags.RIGHT;
+            PreviousVelocityX = PixelVelocityX;
         }
         else
         {
-            //Neutral
-
-            PixelDirectionFlag &= ~PixelDirectionFlags.LEFT;
-            PixelDirectionFlag &= ~PixelDirectionFlags.RIGHT;
+            PreviousVelocityX = 0.0f;
         }
     }
 
-    private void SetVerticalDirectionFlag()
-    {
-        if (VelocityY > 0.0f)
-        {
-            PixelDirectionFlag |= PixelDirectionFlags.UP;
-            PixelDirectionFlag &= ~PixelDirectionFlags.DOWN;
-        }
-        else if (VelocityY < 0.0f)
-        {
-            PixelDirectionFlag |= PixelDirectionFlags.DOWN;
-            PixelDirectionFlag &= ~PixelDirectionFlags.UP;
-        }
-        else
-        {
-            //Neutral
-
-            PixelDirectionFlag &= ~PixelDirectionFlags.UP;
-            PixelDirectionFlag &= ~PixelDirectionFlags.DOWN;
-        }
-    }
-
-    private void SetDirectionFlags()
-    {
-        SetHorizontalDirectionFlag();
-        SetVerticalDirectionFlag();
-    }
-    
-    private void Start()
+    protected void Start()
     {
         PixelTileComponent                      = GetComponent<PixelTile>();
         PixelLevel currentPixelLevelInstance    = PixelTileComponent.CurrentPixelLevelInstance;
@@ -128,12 +148,16 @@ public class PixelCharacter : MonoBehaviour
             return;
         }
 
+        CollisionNormalStateMap   = new Dictionary<int, CollisionNormalFlags>();
         CurrentPixelLevelInstance = currentPixelLevelInstance;
         PixelTileComponent.AlignToPixelLevelGrid();
 
         int pixelsPerUnit   = currentPixelLevelInstance.PixelsPerUnit;
         PixelPositionX      = currentPixelLevelInstance.PixelOriginX + PixelTileComponent.AlignedRelativePositionX * pixelsPerUnit;
         PixelPositionY      = currentPixelLevelInstance.PixelOriginY + PixelTileComponent.AlignedRelativePositionY * pixelsPerUnit;
+        PreviousVelocityX   = PixelVelocityX;
+        CollisionNormalFlag = CollisionNormalFlags.NONE;
+        InputSourceFlag     = InputSourceFlags.NONE;
         JumpStateTimer      = 0.0f;
         isJumping           = false;
     }
@@ -165,6 +189,7 @@ public class PixelCharacter : MonoBehaviour
                 pixelMinimumX > obstacleMaximumX
             )
             {
+                OnObstacleExited(obstaclePixelTileComponent.GetInstanceID());
                 continue;
             }
 
@@ -178,20 +203,46 @@ public class PixelCharacter : MonoBehaviour
 
             if (differenceMinimum == differences[0])
             {
+                OnObstacleCollided(obstaclePixelTileComponent.GetInstanceID(), CollisionNormalFlags.RIGHT_WALL);
                 PixelPositionX -= differences[0];
             }
             if (differenceMinimum == differences[1])
             {
+                OnObstacleCollided(obstaclePixelTileComponent.GetInstanceID(), CollisionNormalFlags.LEFT_WALL);
                 PixelPositionX += differences[1];
             }
             if (differenceMinimum == differences[2])
             {
+                OnObstacleCollided(obstaclePixelTileComponent.GetInstanceID(), CollisionNormalFlags.CEILING);
                 PixelPositionY -= differences[2];
             }
             if (differenceMinimum == differences[3])
             {
+                isJumping = false;
+                OnObstacleCollided(obstaclePixelTileComponent.GetInstanceID(), CollisionNormalFlags.GROUND);
                 PixelPositionY += differences[3];
             }
+        }
+    }
+
+    protected virtual void OnObstacleCollided(
+        int objectId,
+        CollisionNormalFlags normalFlag
+    )
+    {
+        if (!CollisionNormalStateMap.ContainsKey(objectId))
+        {
+            CollisionNormalFlag |= normalFlag;
+            CollisionNormalStateMap.Add(objectId, normalFlag);
+        }
+    }
+
+    protected virtual void OnObstacleExited(int objectId)
+    {
+        if (CollisionNormalStateMap.ContainsKey(objectId))
+        {
+            CollisionNormalFlag &= ~CollisionNormalStateMap[objectId];
+            CollisionNormalStateMap.Remove(objectId);
         }
     }
 
@@ -209,19 +260,24 @@ public class PixelCharacter : MonoBehaviour
         int currentPixelPositionX = PixelPositionX;
         int currentPixelPositionY = PixelPositionY;
 
-        if (Input.GetButtonDown("Jump"))
+        if (Input.GetButtonDown("Jump") && ((CollisionNormalFlag & CollisionNormalFlags.GROUND) == CollisionNormalFlags.GROUND))
         {
             isJumping       = true;
             JumpStateTimer  = 0.0f;
         }
 
-        ComputeVelocity();
+        Vector2 joystickInput   = Joystick.GetSmoothInput(0.125f, "Horizontal", "Vertical");
+        bool isKeyPressed       = false;
+
+        ComputeVelocity(ref isKeyPressed, joystickInput);
+        SetInputSourceFlag(isKeyPressed, joystickInput);
+
+        Debug.Log(InputSourceFlag);
 
         PixelPositionX += Mathf.RoundToInt(VelocityX);
         PixelPositionY += Mathf.RoundToInt(VelocityY);
 
         InitializePixelTileObstacleList();
-        SetDirectionFlags();
         DetectAndResolveCollisions();
 
         int pixelsPerUnit   = currentPixelLevelInstance.PixelsPerUnit;
